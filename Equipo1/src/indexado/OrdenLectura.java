@@ -1,5 +1,5 @@
 
-package Indexado;
+package indexado;
 /**
  *
  * @author Pablo Azogue
