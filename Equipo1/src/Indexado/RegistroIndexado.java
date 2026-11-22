@@ -1,13 +1,21 @@
-/*
- * To change this template, choose Tools | Templates
- * and open the template in the editor.
- */
+
 package Indexado;
 
 /**
  *
- * @author Administrador
+ * @author Elías Pérez Arroyo
  */
-class RegistroIndexado {
+public abstract class RegistroIndexado {
     
+    private final Comparable clave;
+    
+    protected RegistroIndexado(Comparable clave) {
+        if (clave == null) {
+            throw new IllegalArgumentException("La clave no puede ser nula");
+        }
+        this.clave = clave;
+    }
+    
+    public Comparable getClave() { 
+        return this.clave; }
 }
