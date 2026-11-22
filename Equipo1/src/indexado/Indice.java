@@ -1,7 +1,6 @@
 package indexado;
 
 import java.io.*;
-import java.util.Map;
 import java.util.TreeMap;
 import java.util.TreeSet;
 
@@ -82,25 +81,22 @@ class Indice {
         }
     }
 
-    public boolean cargar(FormatoRegistro formato, int numRegistros) throws IOException {
+    public boolean cargar(int numRegistros) throws IOException {
         boolean valido = false;
         if (this.ficheroIndice.exists()) {
-            DataInputStream entrada = new DataInputStream(
-                    new BufferedInputStream(new FileInputStream(this.ficheroIndice)));
+            ObjectInputStream entrada = new ObjectInputStream(new FileInputStream(this.ficheroIndice));
             try {
                 boolean abierto = entrada.readBoolean();
                 if (!abierto) {
-                    int cantidad = entrada.readInt();
-                    this.entradas.clear();
-                    for (int i = 0; i < cantidad; i++) {
-                        Comparable clave = formato.leerClave(entrada);
-                        this.entradas.put(clave, entrada.readInt());
-                    }
+                    this.entradas = (TreeMap) entrada.readObject();
                     this.calcularHuecos(numRegistros);
                     valido = true;
                 }
             } catch (EOFException e) {
-                this.entradas.clear();
+                this.entradas = new TreeMap();
+                valido = false;
+            } catch (ClassNotFoundException e) {
+                this.entradas = new TreeMap();
                 valido = false;
             } finally {
                 entrada.close();
@@ -110,26 +106,19 @@ class Indice {
     }
 
     public void marcarAbierto() throws IOException {
-        DataOutputStream salida = new DataOutputStream(new FileOutputStream(this.ficheroIndice));
+        ObjectOutputStream salida = new ObjectOutputStream(new FileOutputStream(this.ficheroIndice));
         try {
             salida.writeBoolean(true);
-            salida.writeInt(0);
         } finally {
             salida.close();
         }
     }
 
-    public void guardar(FormatoRegistro formato) throws IOException {
-        DataOutputStream salida = new DataOutputStream(
-                new BufferedOutputStream(new FileOutputStream(this.ficheroIndice)));
+    public void guardar() throws IOException {
+        ObjectOutputStream salida = new ObjectOutputStream(new FileOutputStream(this.ficheroIndice));
         try {
             salida.writeBoolean(false);
-            salida.writeInt(this.entradas.size());
-            for (Object o : this.entradas.entrySet()) {
-                Map.Entry e = (Map.Entry) o;
-                formato.escribirClave(salida, (Comparable) e.getKey());
-                salida.writeInt((Integer) e.getValue());
-            }
+            salida.writeObject(this.entradas);
         } finally {
             salida.close();
         }
