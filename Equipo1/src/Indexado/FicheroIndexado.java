@@ -2,7 +2,7 @@ package Indexado;
 
 /**
  *
- * @author Administrador
+ * @author Pablo Azogue Castaño
  */
 import java.io.File;
 import java.io.IOException;
