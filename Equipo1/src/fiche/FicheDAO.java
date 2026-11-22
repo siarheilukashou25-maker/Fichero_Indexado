@@ -4,6 +4,8 @@ package fiche;
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
+import indexado.FormatoRegistro;
+import indexado.RegistroIndexado;
 
 /**
  *
@@ -11,16 +13,16 @@ import java.io.IOException;
  */
 public class FicheDAO implements FormatoRegistro {
 
-        public int getLongitudClave() {
-        return FicheRegistro.LONGITUD_DNI * 2;
+        public short getLongitudClave() {
+        return (short) (FicheRegistro.LONGITUD_DNI * 2);
     }
 
-        public int getLongitudDatos() {
-        return FicheRegistro.LONGITUD_NOMBRE * 2 + 2 + 4 + 2 + 1 + 1 + 2 + 1;
+        public short getLongitudDatos() {
+        return (short) (FicheRegistro.LONGITUD_NOMBRE * 2 + 2 + 4 + 2 + 1 + 1 + 2 + 1);
     }
 
-        public void escribirClave(DataOutput salida, String clave) throws IOException {
-        escribirTexto(salida, clave, FicheRegistro.LONGITUD_DNI);
+        public void escribirClave(DataOutput salida, Comparable clave) throws IOException {
+        escribirTexto(salida, (String) clave, FicheRegistro.LONGITUD_DNI);
     }
 
         public String leerClave(DataInput entrada) throws IOException {
@@ -39,7 +41,7 @@ public class FicheDAO implements FormatoRegistro {
         salida.writeByte(reg.getProvincia().getCodigo());
     }
 
-        public FicheRegistro leerDatos(DataInput entrada, String clave) throws IOException {
+        public FicheRegistro leerDatos(DataInput entrada, Comparable clave) throws IOException {
         FicheRegistro registro;
         String nombre = leerTexto(entrada, FicheRegistro.LONGITUD_NOMBRE);
         char sexo = entrada.readChar();
@@ -50,7 +52,7 @@ public class FicheDAO implements FormatoRegistro {
         char tipo = entrada.readChar();
         byte provincia = entrada.readByte();
         try {
-            registro = new FicheRegistro(clave, nombre, Sexo.desdeCodigo(sexo), salario,
+            registro = new FicheRegistro((String) clave, nombre, Sexo.desdeCodigo(sexo), salario,
                     new Fecha(anio, mes, dia), TipoEmpleado.desdeCodigo(tipo), Provincia.desdeCodigo(provincia));
         } catch (IllegalArgumentException e) {
             throw new IOException("Registro con datos no validos: " + e.getMessage(), e);

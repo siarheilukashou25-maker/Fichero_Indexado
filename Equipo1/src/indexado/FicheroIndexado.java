@@ -40,57 +40,69 @@ public class FicheroIndexado {
         claveActual = null;
     }
 
-    public void escribir(RegistroIndexado registro) throws IOException, ClaveDuplicadaException {
+    // Devuelve false si la clave ya existe (no se escribe nada)
+    public boolean escribir(RegistroIndexado registro) throws IOException {
         Comparable clave;
         int posicion;
+        boolean escrito;
 
+        escrito = false;
         clave = registro.getClave();
-        if (indice.existe(clave)) {
-            throw new ClaveDuplicadaException("La clave ya existe");
+        if (!indice.existe(clave)) {
+            posicion = indice.posicionLibre(getNumRegistrosFisicos());
+            escribirEnPosicion(posicion, registro);
+            indice.anadir(clave, posicion);
+            indice.guardar();
+            escrito = true;
         }
-        posicion = indice.posicionLibre(getNumRegistrosFisicos());
-        escribirEnPosicion(posicion, registro);
-        indice.anadir(clave, posicion);
-        indice.guardar(formato);
+        return escrito;
     }
 
-    public RegistroIndexado leer(Comparable clave) throws IOException, ClaveInexistenteException {
+    // Devuelve null si la clave no existe
+    public RegistroIndexado leer(Comparable clave) throws IOException {
         int posicion;
         RegistroIndexado registro;
 
         posicion = indice.buscar(clave);
         registro = null;
-        if (posicion == -1) {
-            throw new ClaveInexistenteException("La clave no existe");
+        if (posicion != -1) {
+            registro = leerEnPosicion(posicion);
         }
-        registro = leerEnPosicion(posicion);
         return registro;
     }
 
-    public void reescribir(RegistroIndexado registro) throws IOException, ClaveInexistenteException {
+    // Devuelve false si la clave no existe (no se reescribe nada)
+    public boolean reescribir(RegistroIndexado registro) throws IOException {
         Comparable clave;
         int posicion;
+        boolean reescrito;
 
+        reescrito = false;
         clave = registro.getClave();
         posicion = indice.buscar(clave);
-        if (posicion == -1) {
-            throw new ClaveInexistenteException("La clave no existe");
+        if (posicion != -1) {
+            escribirEnPosicion(posicion, registro);
+            reescrito = true;
         }
-        escribirEnPosicion(posicion, registro);
+        return reescrito;
     }
 
-    public void eliminar(Comparable clave) throws IOException, ClaveInexistenteException {
+    // Devuelve false si la clave no existe (no se elimina nada)
+    public boolean eliminar(Comparable clave) throws IOException {
         int posicion;
+        boolean eliminado;
 
+        eliminado = false;
         posicion = indice.buscar(clave);
-        if (posicion == -1) {
-            throw new ClaveInexistenteException("La clave no existe");
+        if (posicion != -1) {
+            datos.seek((long) posicion * longitudRegistro);
+            datos.writeBoolean(false);
+            indice.quitar(clave);
+            indice.calcularHuecos(getNumRegistrosFisicos());
+            indice.guardar();
+            eliminado = true;
         }
-        datos.seek((long) posicion * longitudRegistro);
-        datos.writeBoolean(false);
-        indice.quitar(clave);
-        indice.calcularHuecos(getNumRegistrosFisicos());
-        indice.guardar(formato);
+        return eliminado;
     }
 
     public boolean existe(Comparable clave) {
@@ -177,8 +189,7 @@ public class FicheroIndexado {
     }
 
     public void cerrar() throws IOException {
-        indice.guardar(formato);
-        indice.marcarAbierto();
+        indice.guardar();
         datos.close();
     }
 
@@ -200,7 +211,7 @@ public class FicheroIndexado {
             posicion++;
         }
         indice.calcularHuecos(total);
-        indice.guardar(formato);
+        indice.guardar();
     }
 
     private RegistroIndexado leerEnPosicion(int posicion) throws IOException {

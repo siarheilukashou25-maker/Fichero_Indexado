@@ -2,6 +2,7 @@
 package fiche;
 
 import java.math.BigDecimal;
+import indexado.RegistroIndexado;
 
 /**
  *
