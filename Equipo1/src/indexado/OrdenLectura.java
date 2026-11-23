@@ -1,5 +1,4 @@
-
-package Indexado;
+package indexado;
 /**
  *
  * @author Pablo Azogue
@@ -7,6 +6,6 @@ package Indexado;
 public enum OrdenLectura {
 
     CLAVE,
-    FISICO
+    ALMACENAMIENTO
 
 }
