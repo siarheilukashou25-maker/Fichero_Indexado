@@ -4,6 +4,10 @@ import java.io.*;
 import java.util.TreeMap;
 import java.util.TreeSet;
 
+/**
+ *
+ * @author LukashouSiarhei
+ */
 class Indice {
 
     private File ficheroIndice;
@@ -52,6 +56,10 @@ class Indice {
         return this.huecos.contains(posicion);
     }
 
+    public int getNumEntradas() {
+        return this.entradas.size();
+    }
+
     public Comparable primeraClave() {
         Comparable clave = null;
         if (!this.entradas.isEmpty()) {
@@ -81,26 +89,33 @@ class Indice {
         }
     }
 
-    public boolean cargar(int numRegistros) throws IOException {
+    public boolean cargar(int numRegistros) {
         boolean valido = false;
+        ObjectInputStream entrada = null;
         if (this.ficheroIndice.exists()) {
-            ObjectInputStream entrada = new ObjectInputStream(new FileInputStream(this.ficheroIndice));
             try {
+                entrada = new ObjectInputStream(new FileInputStream(this.ficheroIndice));
                 boolean abierto = entrada.readBoolean();
                 if (!abierto) {
                     this.entradas = (TreeMap) entrada.readObject();
                     this.calcularHuecos(numRegistros);
                     valido = true;
                 }
-            } catch (EOFException e) {
-                this.entradas = new TreeMap();
+            } catch (IOException e) {
                 valido = false;
             } catch (ClassNotFoundException e) {
-                this.entradas = new TreeMap();
+                valido = false;
+            } catch (ClassCastException e) {
+                valido = false;
+            } catch (ArrayIndexOutOfBoundsException e) {
                 valido = false;
             } finally {
-                entrada.close();
+                cerrar(entrada);
             }
+        }
+        if (!valido) {
+            this.entradas = new TreeMap();
+            this.huecos.clear();
         }
         return valido;
     }
@@ -121,6 +136,16 @@ class Indice {
             salida.writeObject(this.entradas);
         } finally {
             salida.close();
+        }
+    }
+
+    private void cerrar(InputStream entrada) {
+        if (entrada != null) {
+            try {
+                entrada.close();
+            } catch (IOException e) {
+                System.err.println("Error " + e.getMessage());
+            }
         }
     }
 }

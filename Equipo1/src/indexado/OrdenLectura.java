@@ -1,4 +1,3 @@
-
 package indexado;
 /**
  *
@@ -7,6 +6,6 @@ package indexado;
 public enum OrdenLectura {
 
     CLAVE,
-    FISICO
+    ALMACENAMIENTO
 
 }

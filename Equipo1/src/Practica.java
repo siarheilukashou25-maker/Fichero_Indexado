@@ -4,6 +4,8 @@ import fiche.FicheRegistro;
 import fiche.Provincia;
 import fiche.Sexo;
 import fiche.TipoEmpleado;
+import indexado.ClaveDuplicadaException;
+import indexado.ClaveInexistenteException;
 import indexado.FicheroIndexado;
 import indexado.ModoApertura;
 import indexado.OrdenLectura;
@@ -15,55 +17,76 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.text.ParseException;
 
+/**
+ *
+ * @author Pablo Azogue
+ */
 public class Practica {
 
-    private static BufferedReader teclado = new BufferedReader(new InputStreamReader(System.in));
-    private static FicheroIndexado fichero;
-
     public static void main(String[] args) {
+        BufferedReader teclado;
+        FicheroIndexado fichero;
         File archivoDatos;
-        ModoApertura modo;
         int opcion;
 
         archivoDatos = new File("FICHENDX.DAT");
-
+        if (!archivoDatos.isFile()) {
+            System.err.println("No existe el fichero " + archivoDatos.getName() + ", ejecute antes CreaFiche");
+            System.exit(1);
+        }
+        teclado = new BufferedReader(new InputStreamReader(System.in));
+        fichero = null;
         try {
-            modo = archivoDatos.exists() ? ModoApertura.LECTURA_ESCRITURA : ModoApertura.CREACION;
-            fichero = new FicheroIndexado(archivoDatos, modo, new FicheDAO());
-
+            fichero = new FicheroIndexado(archivoDatos, ModoApertura.LECTURA_ESCRITURA, new FicheDAO());
             do {
-                opcion = mostrarMenu();
+                opcion = mostrarMenu(teclado);
                 switch (opcion) {
                     case 1:
-                        altaEmpleado();
+                        altaEmpleado(teclado, fichero);
                         break;
                     case 2:
-                        bajaEmpleado();
+                        bajaEmpleado(teclado, fichero);
                         break;
                     case 3:
-                        modificarSalario();
+                        modificarSalario(teclado, fichero);
                         break;
                     case 4:
-                        listarEmpleados(OrdenLectura.CLAVE);
+                        listarEmpleados(fichero, OrdenLectura.CLAVE);
                         break;
                     case 5:
-                        listarEmpleados(OrdenLectura.FISICO);
+                        listarEmpleados(fichero, OrdenLectura.ALMACENAMIENTO);
                         break;
                     case 6:
                         System.out.println("Cerrando el fichero y saliendo...");
-                        fichero.cerrar();
                         break;
                     default:
-                        System.out.println("Opción incorrecta. Intente de nuevo.");
+                        System.err.println("Opcion incorrecta. Intente de nuevo.");
                 }
             } while (opcion != 6);
-
         } catch (IOException e) {
             System.err.println("Error de entrada/salida: " + e.getMessage());
+        } finally {
+            if (fichero != null) {
+                try {
+                    fichero.cerrar();
+                } catch (IOException e) {
+                    System.err.println("Error al cerrar: " + e.getMessage());
+                }
+            }
         }
     }
 
-    private static int mostrarMenu() throws IOException {
+    private static String leerLinea(BufferedReader teclado) throws IOException {
+        String linea;
+
+        linea = teclado.readLine();
+        if (linea != null) {
+            linea = linea.trim();
+        }
+        return linea;
+    }
+
+    private static int mostrarMenu(BufferedReader teclado) throws IOException {
         int opcion;
         String entrada;
         boolean valido;
@@ -78,121 +101,122 @@ public class Practica {
         System.out.println("4. Listado de empleados, ordenado por DNI");
         System.out.println("5. Listado de empleados por orden de almacenamiento");
         System.out.println("6. Salir");
-        
+
         do {
-            System.out.print("Elija una opción: ");
-            entrada = teclado.readLine().trim();
-            try {
-                opcion = Integer.parseInt(entrada);
+            System.out.print("Elija una opcion: ");
+            entrada = leerLinea(teclado);
+            if (entrada == null) {
+                opcion = 6;
                 valido = true;
-            } catch (NumberFormatException e) {
-                System.out.println("Error: Por favor, introduzca un número válido.");
+            } else {
+                try {
+                    opcion = Integer.parseInt(entrada);
+                    valido = true;
+                } catch (NumberFormatException e) {
+                    System.err.println("Error: Por favor, introduzca un numero valido.");
+                }
             }
         } while (!valido);
-        
-        return opcion; 
+
+        return opcion;
     }
 
-    private static void altaEmpleado() throws IOException {
+    private static void altaEmpleado(BufferedReader teclado, FicheroIndexado fichero) throws IOException {
         String dni;
         String nombre;
         Sexo sexo;
-        float salario;
+        Float salario;
         Fecha fecha;
         TipoEmpleado tipoEmpleado;
         Provincia provincia;
-        FicheRegistro nuevoRegistro;
 
         System.out.println("\n--- 1. ALTA DE EMPLEADO ---");
-        dni = pedirDni();
+        dni = pedirDni(teclado);
 
-        if (fichero.existe(dni)) {
-            System.out.println("Error: Ya existe un empleado con ese DNI.");
-        } else {
-            nombre = pedirNombreYApe();
-            sexo = pedirSexo();
-            salario = pedirSalario();
-            fecha = pedirFechaIngreso();
-            tipoEmpleado = pedirTipoEmpleado();
-            provincia = pedirProvincia();
-            
-            try {
-                nuevoRegistro = new FicheRegistro(dni, nombre, sexo, salario, fecha, tipoEmpleado, provincia);
-                
-                if (fichero.escribir(nuevoRegistro)) {
+        if (dni != null && fichero.existe(dni)) {
+            System.err.println("Error: Ya existe un empleado con ese DNI.");
+        } else if (dni != null) {
+            nombre = pedirNombreYApe(teclado);
+            sexo = nombre == null ? null : pedirSexo(teclado);
+            salario = sexo == null ? null : pedirSalario(teclado);
+            fecha = salario == null ? null : pedirFechaIngreso(teclado);
+            tipoEmpleado = fecha == null ? null : pedirTipoEmpleado(teclado);
+            provincia = tipoEmpleado == null ? null : pedirProvincia(teclado);
+
+            if (provincia == null) {
+                System.err.println("Alta cancelada.");
+            } else {
+                try {
+                    fichero.escribir(new FicheRegistro(dni, nombre, sexo, salario, fecha, tipoEmpleado, provincia));
                     System.out.println("Empleado dado de alta correctamente.");
-                } else {
-                    System.out.println("No se pudo dar de alta al empleado.");
+                } catch (ClaveDuplicadaException e) {
+                    System.err.println("Error: " + e.getMessage());
+                } catch (IllegalArgumentException e) {
+                    System.err.println("Error al crear el registro: " + e.getMessage());
                 }
-            } catch (IllegalArgumentException e) {
-                System.out.println("Error al crear el registro: " + e.getMessage());
             }
         }
     }
 
-    private static void bajaEmpleado() throws IOException {
+    private static void bajaEmpleado(BufferedReader teclado, FicheroIndexado fichero) throws IOException {
         String dni;
         FicheRegistro registro;
         String confirmacion;
 
         System.out.println("\n--- 2. BAJA DE EMPLEADO ---");
-        dni = pedirDni();
+        dni = pedirDni(teclado);
 
-        registro = (FicheRegistro) fichero.leer(dni);
-        
-        if (registro != null) {
-            System.out.println("Datos del empleado:");
-            System.out.println(registro.toString());
-            
-            System.out.print("¿Está seguro de que desea eliminar a este empleado? (S/N): ");
-            confirmacion = teclado.readLine().trim().toUpperCase();
+        if (dni != null) {
+            try {
+                registro = (FicheRegistro) fichero.leer(dni);
+                System.out.println("Datos del empleado:");
+                System.out.println(registro.toString());
 
-            if (confirmacion.equals("S")) {
-                if (fichero.eliminar(dni)) {
+                System.out.print("Esta seguro de que desea eliminar a este empleado? (S/N): ");
+                confirmacion = leerLinea(teclado);
+
+                if (confirmacion != null && confirmacion.equalsIgnoreCase("S")) {
+                    fichero.eliminar(dni);
                     System.out.println("Empleado eliminado correctamente.");
                 } else {
-                    System.out.println("Error al intentar eliminar el empleado.");
+                    System.out.println("Operacion cancelada.");
                 }
-            } else {
-                System.out.println("Operación cancelada.");
+            } catch (ClaveInexistenteException e) {
+                System.err.println("No se encontro ningun empleado con ese DNI.");
             }
-        } else {
-            System.out.println("No se encontró ningún empleado con ese DNI.");
         }
     }
 
-    private static void modificarSalario() throws IOException {
+    private static void modificarSalario(BufferedReader teclado, FicheroIndexado fichero) throws IOException {
         String dni;
         FicheRegistro registro;
-        float nuevoSalario;
+        Float nuevoSalario;
 
         System.out.println("\n--- 3. MODIFICAR SALARIO ---");
-        dni = pedirDni();
+        dni = pedirDni(teclado);
 
-        registro = (FicheRegistro) fichero.leer(dni);
-        
-        if (registro != null) {
-            System.out.printf("El salario actual del empleado %s es: %.2f\n", registro.getNombreApe(), registro.getSalario());
-            
-            nuevoSalario = pedirSalario();
-            
+        if (dni != null) {
             try {
-                registro.setSalario(nuevoSalario);
-                
-                if (fichero.reescribir(registro)) {
-                    System.out.println("Salario modificado correctamente.");
+                registro = (FicheRegistro) fichero.leer(dni);
+                System.out.printf("El salario actual del empleado %s es: %.2f\n", registro.getNombreApe(), registro.getSalario());
+
+                nuevoSalario = pedirSalario(teclado);
+                if (nuevoSalario == null) {
+                    System.err.println("Modificacion cancelada.");
                 } else {
-                    System.out.println("Error al guardar la modificación.");
+                    registro.setSalario(nuevoSalario);
+                    fichero.reescribir(registro);
+                    System.out.println("Salario modificado correctamente.");
                 }
+            } catch (ClaveInexistenteException e) {
+                System.err.println("No se encontro ningun empleado con ese DNI.");
             } catch (IllegalArgumentException e) {
-                System.out.println("Error: " + e.getMessage());
+                System.err.println("Error: " + e.getMessage());
             }
-        } else {
-            System.out.println("No se encontró ningún empleado con ese DNI.");
         }
     }
 
-    private static void listarEmpleados(OrdenLectura orden) throws IOException {
+    private static void listarEmpleados(FicheroIndexado fichero, OrdenLectura orden) throws IOException {
         String titulo;
         int contador;
         RegistroIndexado reg;
@@ -211,9 +235,9 @@ public class Practica {
             reg = fichero.leerSiguiente();
             if (reg != null) {
                 emp = (FicheRegistro) reg;
-                System.out.printf("%-10s %-30s %-4c\n", 
-                        emp.getClave(), 
-                        emp.getNombreApe(), 
+                System.out.printf("%-10s %-30s %-4c\n",
+                        emp.getClave(),
+                        emp.getNombreApe(),
                         emp.getSexo().getCodigo());
                 contador++;
             }
@@ -223,153 +247,179 @@ public class Practica {
         System.out.println("Total empleados listados: " + contador);
     }
 
-    private static String pedirDni() throws IOException {
+    private static String pedirDni(BufferedReader teclado) throws IOException {
         String dni;
         boolean valido;
 
         valido = false;
         do {
             System.out.print("Introduzca DNI (9 caracteres): ");
-            dni = teclado.readLine().trim().toUpperCase();
-            if (FicheRegistro.esDniValido(dni)) {
+            dni = leerLinea(teclado);
+            if (dni == null || FicheRegistro.esDniValido(dni)) {
                 valido = true;
             } else {
-                System.out.println("Error: El DNI debe tener exactamente 9 caracteres.");
+                System.err.println("Error: El DNI debe tener exactamente 9 caracteres.");
             }
         } while (!valido);
 
-        return dni;
+        return dni == null ? null : dni.toUpperCase();
     }
 
-    private static String pedirNombreYApe() throws IOException {
+    private static String pedirNombreYApe(BufferedReader teclado) throws IOException {
         String nombre;
         boolean valido;
 
         valido = false;
         do {
-            System.out.print("Nombre y apellidos (máx 30 caracteres): ");
-            nombre = teclado.readLine().trim().toUpperCase().replaceAll("\\s+", " ");
-            
-            if (FicheRegistro.esNombreValido(nombre) && nombre.matches("[A-ZÁÉÍÓÚÜÑ]+( [A-ZÁÉÍÓÚÜÑ]+)*")) {
+            System.out.print("Nombre y apellidos (max 30 caracteres): ");
+            nombre = leerLinea(teclado);
+            if (nombre == null) {
                 valido = true;
             } else {
-                System.out.println("Error: Formato incorrecto o excede los 30 caracteres.");
+                nombre = nombre.toUpperCase().replaceAll("\\s+", " ");
+                if (FicheRegistro.esNombreValido(nombre) && nombre.matches("[A-ZÁÉÍÓÚÜÑ]+( [A-ZÁÉÍÓÚÜÑ]+)*")) {
+                    valido = true;
+                } else {
+                    System.err.println("Error: Formato incorrecto o excede los 30 caracteres.");
+                }
             }
         } while (!valido);
 
         return nombre;
     }
 
-    private static Sexo pedirSexo() throws IOException {
+    private static Sexo pedirSexo(BufferedReader teclado) throws IOException {
         String cadena;
         Sexo sexo;
+        boolean fin;
 
         sexo = null;
+        fin = false;
         do {
             System.out.print("Introduzca el sexo del empleado (H/M): ");
-            cadena = teclado.readLine().trim().toUpperCase();
-
-            if (cadena.length() == 1) {
+            cadena = leerLinea(teclado);
+            if (cadena == null) {
+                fin = true;
+            } else if (cadena.length() == 1) {
                 try {
                     sexo = Sexo.desdeCodigo(cadena.charAt(0));
                 } catch (IllegalArgumentException e) {
-                    System.out.println("Error: Sexo no válido.");
+                    System.err.println("Error: Sexo no valido.");
                 }
             } else {
-                System.out.println("Error: Debe introducir un único carácter.");
+                System.err.println("Error: Debe introducir un unico caracter.");
             }
-        } while (sexo == null);
+        } while (sexo == null && !fin);
 
         return sexo;
     }
 
-    private static float pedirSalario() throws IOException {
-        float salario;
+    private static Float pedirSalario(BufferedReader teclado) throws IOException {
+        Float salario;
+        float valor;
         String cadena;
-        boolean valido;
+        boolean fin;
 
-        salario = -1f;
-        valido = false;
+        salario = null;
+        fin = false;
         do {
             System.out.print("Salario: ");
-            cadena = teclado.readLine().trim().replace(',', '.');
-            
-            try {
-                salario = Float.parseFloat(cadena);
-                if (FicheRegistro.esSalarioValido(salario)) {
-                    valido = true;
-                } else {
-                    System.out.println("Error: El salario debe estar entre 0.01 y " + FicheRegistro.SALARIO_MAXIMO + " (2 decimales máx).");
+            cadena = leerLinea(teclado);
+            if (cadena == null) {
+                fin = true;
+            } else {
+                try {
+                    valor = Float.parseFloat(cadena.replace(',', '.'));
+                    if (FicheRegistro.esSalarioValido(valor)) {
+                        salario = valor;
+                    } else {
+                        System.err.println("Error: El salario debe estar entre 0.01 y " + FicheRegistro.SALARIO_MAXIMO + " (2 decimales max).");
+                    }
+                } catch (NumberFormatException e) {
+                    System.err.println("Error: Formato numerico incorrecto.");
                 }
-            } catch (NumberFormatException e) {
-                System.out.println("Error: Formato numérico incorrecto.");
             }
-        } while (!valido);
+        } while (salario == null && !fin);
 
         return salario;
     }
 
-    private static Fecha pedirFechaIngreso() throws IOException {
+    private static Fecha pedirFechaIngreso(BufferedReader teclado) throws IOException {
         String cadena;
         Fecha fecha;
+        boolean fin;
 
         fecha = null;
+        fin = false;
         do {
             System.out.print("Fecha de ingreso (dd/mm/aaaa): ");
-            cadena = teclado.readLine().trim();
-            
-            try {
-                fecha = Fecha.parse(cadena);
-            } catch (ParseException e) {
-                System.out.println("Error: Fecha incorrecta o con formato inválido.");
+            cadena = leerLinea(teclado);
+            if (cadena == null) {
+                fin = true;
+            } else {
+                try {
+                    fecha = Fecha.parse(cadena);
+                    if (fecha.esPosterior(Fecha.hoy())) {
+                        System.err.println("Error: La fecha no puede ser futura.");
+                        fecha = null;
+                    }
+                } catch (ParseException e) {
+                    System.err.println("Error: Fecha incorrecta o con formato invalido.");
+                }
             }
-        } while (fecha == null);
+        } while (fecha == null && !fin);
 
         return fecha;
     }
 
-    private static TipoEmpleado pedirTipoEmpleado() throws IOException {
+    private static TipoEmpleado pedirTipoEmpleado(BufferedReader teclado) throws IOException {
         String cadena;
         TipoEmpleado tipo;
+        boolean fin;
 
         tipo = null;
+        fin = false;
         do {
             System.out.print("Tipo empleado (C, F o D): ");
-            cadena = teclado.readLine().trim().toUpperCase();
-
-            if (cadena.length() == 1) {
+            cadena = leerLinea(teclado);
+            if (cadena == null) {
+                fin = true;
+            } else if (cadena.length() == 1) {
                 try {
                     tipo = TipoEmpleado.desdeCodigo(cadena.charAt(0));
                 } catch (IllegalArgumentException e) {
-                    System.out.println("Error: Tipo de empleado no válido.");
+                    System.err.println("Error: Tipo de empleado no valido.");
                 }
             } else {
-                System.out.println("Error: Debe introducir un único carácter.");
+                System.err.println("Error: Debe introducir un unico caracter.");
             }
-        } while (tipo == null);
+        } while (tipo == null && !fin);
 
         return tipo;
     }
 
-    private static Provincia pedirProvincia() throws IOException {
+    private static Provincia pedirProvincia(BufferedReader teclado) throws IOException {
         String cadena;
-        byte codigo;
         Provincia provincia;
+        boolean fin;
 
         provincia = null;
+        fin = false;
         do {
-            System.out.print("Código de Provincia (1-Almería ... 8-Sevilla): ");
-            cadena = teclado.readLine().trim();
-            
-            try {
-                codigo = Byte.parseByte(cadena);
-                provincia = Provincia.desdeCodigo(codigo);
-            } catch (NumberFormatException e) {
-                System.out.println("Error: Debe introducir un número entero.");
-            } catch (IllegalArgumentException e) {
-                System.out.println("Error: " + e.getMessage());
+            System.out.print("Codigo de Provincia (1-Almeria ... 8-Sevilla): ");
+            cadena = leerLinea(teclado);
+            if (cadena == null) {
+                fin = true;
+            } else {
+                try {
+                    provincia = Provincia.desdeCodigo(Byte.parseByte(cadena));
+                } catch (NumberFormatException e) {
+                    System.err.println("Error: Debe introducir un numero entero.");
+                } catch (IllegalArgumentException e) {
+                    System.err.println("Error: " + e.getMessage());
+                }
             }
-        } while (provincia == null);
+        } while (provincia == null && !fin);
 
         return provincia;
     }
