@@ -73,6 +73,7 @@ public class FicheroIndexado {
         posicion = buscarPosicion(clave);
         datos.seek((long) posicion * longitudRegistro);
         datos.writeBoolean(false);
+        datos.write(new byte[longitudRegistro - 1]);
         indice.quitar(clave);
     }
 

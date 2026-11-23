@@ -1,117 +1,104 @@
+
+import fichedat.Empleado;
+import fichedat.EmpleadoDAO;
 import fiche.FicheDAO;
 import fiche.FicheRegistro;
 import indexado.ClaveDuplicadaException;
 import indexado.FicheroIndexado;
 import indexado.ModoApertura;
-
-import java.io.BufferedInputStream;
 import java.io.BufferedReader;
-import java.io.DataInputStream;
-import java.io.EOFException;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 
+
+
 /**
  *
- * @author LukashouSiarhei
+ * @author Elías Pérez Arroyo
  */
 public class CreaFiche {
 
     public static void main(String[] args) {
-        File origen;
-        File destino;
+        File ficheroOrigen=new File("ficheros", "FICHE.DAT");
+        File ficheroIndice=new File("ficheros", "FICHENDX.DAT");
+        FicheroIndexado ficheroIndexadoFinal=null;
+        FicheRegistro registroIndexado;
         BufferedReader teclado;
-        DataInputStream entrada;
-        FicheroIndexado fichero;
-        FicheDAO dao;
-        FicheRegistro registro;
-        String nombre;
         String dni;
         boolean fin;
-        boolean grabado;
+        boolean valido;
         int grabados;
+        EmpleadoDAO daoFicheroOrigen=null;
+        Empleado empOrigen;
 
-        origen = new File("FICHE.DAT");
-        destino = new File("FICHENDX.DAT");
-        if (!origen.isFile()) {
-            System.err.println("No existe el fichero " + origen.getName());
+        if(!ficheroOrigen.isFile()){
+            System.err.println("No existe FICHE.DAT");
             System.exit(1);
         }
-        dao = new FicheDAO();
-        if (origen.length() % dao.getLongitudDatos() != 0) {
-            System.err.println("Fichero " + origen.getName() + " no valido");
+        if(ficheroOrigen.length() % EmpleadoDAO.LONGITUD_REGISTRO != 0){
+            System.err.println("FICHE.DAT no valido");
             System.exit(1);
         }
         teclado = new BufferedReader(new InputStreamReader(System.in));
-        entrada = null;
-        fichero = null;
-        grabados = 0;
-        try {
-            entrada = new DataInputStream(new BufferedInputStream(new FileInputStream(origen)));
-            fichero = new FicheroIndexado(destino, ModoApertura.CREACION, dao);
-            fin = false;
-            while (!fin) {
+        grabados=0;
+        try{
+           daoFicheroOrigen=new EmpleadoDAO(ficheroOrigen);
+           daoFicheroOrigen.abrirLectura();
+           ficheroIndexadoFinal=new FicheroIndexado(ficheroIndice,ModoApertura.CREACION,new FicheDAO());
+           fin=false;
+           empOrigen=daoFicheroOrigen.leer();
+           while(empOrigen!=null && !fin){
+               valido=false;
+               dni=null;
+               do{
+                   System.out.println("\nEMPLEADO: " + empOrigen.toString());
+                   System.out.println("Introduce el DNI del empleado");
+                   dni=teclado.readLine();
+                   if(dni==null){
+                       fin=true;
+                   }else if(!FicheRegistro.esDniValido(dni)){
+                       System.err.println("El DNI debe tener " + FicheRegistro.LONGITUD_DNI + " caracteres");
+                   }else if(ficheroIndexadoFinal.existe(dni.trim().toUpperCase())){
+                       System.err.println("Ya existe un empleado con ese DNI");
+                   }else{
+                       valido=true;
+                   }
+               }while(!valido && !fin);
+               if(valido){
+                   registroIndexado=new FicheRegistro(dni,
+                           empOrigen.getNombreYApe(),
+                           empOrigen.getSexo(),
+                           empOrigen.getSalario(),
+                           empOrigen.getFechaIngreso(),
+                           empOrigen.getTipoEmpleado(),
+                           empOrigen.getProvincia());
+                   ficheroIndexadoFinal.escribir(registroIndexado);
+                   grabados++;
+                   empOrigen=daoFicheroOrigen.leer();
+               }
+           }
+           System.out.println("\nProceso finalizado. Registros grabados: " + grabados);
+        } catch (ClaveDuplicadaException cde) {
+            System.err.println(cde.getMessage());
+        } catch (IllegalArgumentException iae) {
+            System.err.println("Datos no validos: "+iae.getMessage());
+        } catch (IOException ex) {
+            System.err.println("Error de E/S: "+ex.getMessage());
+        }finally{
+            if(daoFicheroOrigen!=null){
                 try {
-                    entrada.mark(dao.getLongitudDatos());
-                    nombre = leerNombre(entrada);
-                    entrada.reset();
-                    grabado = false;
-                    while (!grabado && !fin) {
-                        System.out.print("DNI de " + nombre + ": ");
-                        dni = teclado.readLine();
-                        if (dni == null) {
-                            fin = true;
-                        } else if (!FicheRegistro.esDniValido(dni)) {
-                            System.err.println("DNI de " + FicheRegistro.LONGITUD_DNI + " caracteres");
-                        } else if (fichero.existe(dni.trim().toUpperCase())) {
-                            System.err.println("DNI repetido");
-                        } else {
-                            registro = (FicheRegistro) dao.leerDatos(entrada, dni.trim().toUpperCase());
-                            fichero.escribir(registro);
-                            grabado = true;
-                            grabados++;
-                        }
-                    }
-                } catch (EOFException e) {
-                    fin = true;
+                    daoFicheroOrigen.close();
+                } catch (IOException ioe) {
+                    System.err.println("Error al cerrar FICHE.DAT " + ioe.getMessage());
                 }
             }
-            System.out.println("Registros grabados " + grabados);
-        } catch (ClaveDuplicadaException e) {
-            System.err.println(e.getMessage());
-        } catch (IOException e) {
-            System.err.println("Error " + e.getMessage());
-        } finally {
-            cerrar(entrada);
-            if (fichero != null) {
+            if (ficheroIndexadoFinal != null) {
                 try {
-                    fichero.cerrar();
-                } catch (IOException e) {
-                    System.err.println("Error " + e.getMessage());
+                    ficheroIndexadoFinal.cerrar();
+                } catch (IOException ioe) {
+                    System.err.println("Error al cerrar FICHENDX.DAT: " + ioe.getMessage());
                 }
-            }
-        }
-    }
-
-    private static String leerNombre(DataInputStream entrada) throws IOException {
-        StringBuilder nombre;
-        byte i;
-
-        nombre = new StringBuilder();
-        for (i = 0; i < FicheRegistro.LONGITUD_NOMBRE; i++) {
-            nombre.append(entrada.readChar());
-        }
-        return nombre.toString().trim();
-    }
-
-    private static void cerrar(DataInputStream entrada) {
-        if (entrada != null) {
-            try {
-                entrada.close();
-            } catch (IOException e) {
-                System.err.println("Error " + e.getMessage());
             }
         }
     }

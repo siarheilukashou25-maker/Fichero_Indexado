@@ -29,7 +29,7 @@ public class Practica {
         File archivoDatos;
         int opcion;
 
-        archivoDatos = new File("FICHENDX.DAT");
+        archivoDatos = new File("ficheros", "FICHENDX.DAT");
         if (!archivoDatos.isFile()) {
             System.err.println("No existe el fichero " + archivoDatos.getName() + ", ejecute antes CreaFiche");
             System.exit(1);

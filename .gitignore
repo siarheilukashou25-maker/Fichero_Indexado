@@ -1,3 +1,5 @@
 /Equipo1/build/
 *.DAT
-!Equipo1/pruebas/*.DAT
+!Equipo1/ficheros/*.DAT
+/Equipo1/nbproject/private/
+/Equipo1/dist/
