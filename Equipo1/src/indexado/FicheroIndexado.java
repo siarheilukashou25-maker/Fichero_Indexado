@@ -27,21 +27,16 @@ public class FicheroIndexado {
         longitudRegistro = (short) (1 + formato.getLongitudClave() + formato.getLongitudDatos());
         datos = new RandomAccessFile(fichero, modo.getModo());
         indice = new Indice(new File(nombreIndice(fichero)));
-        try {
-            if (modo == ModoApertura.CREACION) {
-                datos.setLength(0);
-            } else {
-                cargado = indice.cargar(getNumRegistrosFisicos());
-                if (!cargado) {
-                    reconstruirIndice();
-                }
+        if (modo == ModoApertura.CREACION) {
+            datos.setLength(0);
+        } else {
+            cargado = indice.cargar(getNumRegistrosFisicos());
+            if (!cargado) {
+                reconstruirIndice();
             }
-            if (modo != ModoApertura.LECTURA) {
-                indice.marcarAbierto();
-            }
-        } catch (IOException e) {
-            datos.close();
-            throw e;
+        }
+        if (modo != ModoApertura.LECTURA) {
+            indice.marcarAbierto();
         }
         orden = OrdenLectura.CLAVE;
         posicionActual = -1;

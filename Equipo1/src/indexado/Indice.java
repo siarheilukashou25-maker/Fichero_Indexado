@@ -89,7 +89,7 @@ class Indice {
         }
     }
 
-    public boolean cargar(int numRegistros) {
+    public boolean cargar(int numRegistros) throws IOException {
         boolean valido = false;
         ObjectInputStream entrada = null;
         if (this.ficheroIndice.exists()) {
@@ -102,20 +102,16 @@ class Indice {
                     valido = true;
                 }
             } catch (IOException e) {
+                this.entradas = new TreeMap();
                 valido = false;
             } catch (ClassNotFoundException e) {
-                valido = false;
-            } catch (ClassCastException e) {
-                valido = false;
-            } catch (ArrayIndexOutOfBoundsException e) {
+                this.entradas = new TreeMap();
                 valido = false;
             } finally {
-                cerrar(entrada);
+                if (entrada != null) {
+                    entrada.close();
+                }
             }
-        }
-        if (!valido) {
-            this.entradas = new TreeMap();
-            this.huecos.clear();
         }
         return valido;
     }
@@ -136,16 +132,6 @@ class Indice {
             salida.writeObject(this.entradas);
         } finally {
             salida.close();
-        }
-    }
-
-    private void cerrar(InputStream entrada) {
-        if (entrada != null) {
-            try {
-                entrada.close();
-            } catch (IOException e) {
-                System.err.println("Error " + e.getMessage());
-            }
         }
     }
 }

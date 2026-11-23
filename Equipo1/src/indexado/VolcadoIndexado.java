@@ -65,12 +65,17 @@ public class VolcadoIndexado {
             leidos = entrada.read(registro);
             while (leidos != -1) {
                 System.out.println();
-                System.out.println("Registro " + numero + " (byte " + ((long) numero * longitud) + ") "
-                        + (registro[0] != 0 ? "ACTIVO" : "HUECO")
-                        + (leidos < longitud ? " INCOMPLETO (" + leidos + " bytes)" : ""));
+                System.out.print("Registro " + numero + " (byte " + ((long) numero * longitud) + ") ");
                 if (registro[0] != 0) {
+                    System.out.print("ACTIVO");
                     activos++;
+                } else {
+                    System.out.print("HUECO");
                 }
+                if (leidos < longitud) {
+                    System.out.print(" INCOMPLETO (" + leidos + " bytes)");
+                }
+                System.out.println();
                 mostrarBytes(registro, leidos);
                 numero++;
                 leidos = entrada.read(registro);

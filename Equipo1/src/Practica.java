@@ -125,7 +125,7 @@ public class Practica {
         String dni;
         String nombre;
         Sexo sexo;
-        Float salario;
+        float salario;
         Fecha fecha;
         TipoEmpleado tipoEmpleado;
         Provincia provincia;
@@ -136,12 +136,27 @@ public class Practica {
         if (dni != null && fichero.existe(dni)) {
             System.err.println("Error: Ya existe un empleado con ese DNI.");
         } else if (dni != null) {
+            sexo = null;
+            salario = -1f;
+            fecha = null;
+            tipoEmpleado = null;
+            provincia = null;
             nombre = pedirNombreYApe(teclado);
-            sexo = nombre == null ? null : pedirSexo(teclado);
-            salario = sexo == null ? null : pedirSalario(teclado);
-            fecha = salario == null ? null : pedirFechaIngreso(teclado);
-            tipoEmpleado = fecha == null ? null : pedirTipoEmpleado(teclado);
-            provincia = tipoEmpleado == null ? null : pedirProvincia(teclado);
+            if (nombre != null) {
+                sexo = pedirSexo(teclado);
+            }
+            if (sexo != null) {
+                salario = pedirSalario(teclado);
+            }
+            if (salario > 0) {
+                fecha = pedirFechaIngreso(teclado);
+            }
+            if (fecha != null) {
+                tipoEmpleado = pedirTipoEmpleado(teclado);
+            }
+            if (tipoEmpleado != null) {
+                provincia = pedirProvincia(teclado);
+            }
 
             if (provincia == null) {
                 System.err.println("Alta cancelada.");
@@ -190,7 +205,7 @@ public class Practica {
     private static void modificarSalario(BufferedReader teclado, FicheroIndexado fichero) throws IOException {
         String dni;
         FicheRegistro registro;
-        Float nuevoSalario;
+        float nuevoSalario;
 
         System.out.println("\n--- 3. MODIFICAR SALARIO ---");
         dni = pedirDni(teclado);
@@ -201,7 +216,7 @@ public class Practica {
                 System.out.printf("El salario actual del empleado %s es: %.2f\n", registro.getNombreApe(), registro.getSalario());
 
                 nuevoSalario = pedirSalario(teclado);
-                if (nuevoSalario == null) {
+                if (nuevoSalario <= 0) {
                     System.err.println("Modificacion cancelada.");
                 } else {
                     registro.setSalario(nuevoSalario);
@@ -262,7 +277,10 @@ public class Practica {
             }
         } while (!valido);
 
-        return dni == null ? null : dni.toUpperCase();
+        if (dni != null) {
+            dni = dni.toUpperCase();
+        }
+        return dni;
     }
 
     private static String pedirNombreYApe(BufferedReader teclado) throws IOException {
@@ -314,24 +332,25 @@ public class Practica {
         return sexo;
     }
 
-    private static Float pedirSalario(BufferedReader teclado) throws IOException {
-        Float salario;
+    private static float pedirSalario(BufferedReader teclado) throws IOException {
+        float salario;
         float valor;
         String cadena;
-        boolean fin;
+        boolean valido;
 
-        salario = null;
-        fin = false;
+        salario = -1f;
+        valido = false;
         do {
             System.out.print("Salario: ");
             cadena = leerLinea(teclado);
             if (cadena == null) {
-                fin = true;
+                valido = true;
             } else {
                 try {
                     valor = Float.parseFloat(cadena.replace(',', '.'));
                     if (FicheRegistro.esSalarioValido(valor)) {
                         salario = valor;
+                        valido = true;
                     } else {
                         System.err.println("Error: El salario debe estar entre 0.01 y " + FicheRegistro.SALARIO_MAXIMO + " (2 decimales max).");
                     }
@@ -339,7 +358,7 @@ public class Practica {
                     System.err.println("Error: Formato numerico incorrecto.");
                 }
             }
-        } while (salario == null && !fin);
+        } while (!valido);
 
         return salario;
     }
